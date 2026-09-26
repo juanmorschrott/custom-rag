@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-custom_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-custom_rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-custom_rag}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U custom_rag -d custom_rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:0.34.4
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/custom_rag
+      SPRING_DATASOURCE_USERNAME: custom_rag
+      SPRING_DATASOURCE_PASSWORD: custom_rag
+      BOOKS_DIRECTORY: /app/data/books
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_CHAT_MODEL: phi4:latest
+      OLLAMA_EMBEDDING_MODEL: embeddinggemma:latest
+      EMBEDDING_DIMENSIONS: 768
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/books:/app/data/books:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  ollama-data:

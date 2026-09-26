@@ -2,6 +2,8 @@
 
 Find where software concepts are explained in your books. The app indexes PDF text and answers with book, chapter, page, and passage references.
 
+![Custom RAG search result](docs/images/demo.png)
+
 ## Requirements
 
 - Docker Engine/Desktop with Compose v2, GNU Make, `curl`, and `jq`.
