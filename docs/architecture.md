@@ -28,37 +28,33 @@ sequenceDiagram
     participant LLM as Ollama - Phi-4
     participant DB as PostgreSQL + pgvector
 
-    rect rgb(235, 243, 255)
-        Note over Reader,DB: PDF ingestion
-        Reader->>API: POST /api/ingestion/scan
-        API->>API: Find PDFs and calculate SHA-256 checksum
-        API->>PDF: Extract text by page and read bookmarks
-        PDF-->>API: Page text and chapter boundaries
-        API->>API: Split text into chunks with page references
-        API->>DB: Save book, chapter, and chunk records
-        API->>AI: VectorStore.add(chunk documents)
-        AI->>Embed: Generate one embedding per chunk
-        Embed-->>AI: Chunk vectors
-        AI->>DB: Store vectors, text, and metadata
-        DB-->>API: Index stored
-        API-->>Reader: Ingestion status and counts
-    end
+    Note over Reader,DB: PDF ingestion
+    Reader->>API: POST /api/ingestion/scan
+    API->>API: Find PDFs and calculate SHA-256 checksum
+    API->>PDF: Extract text by page and read bookmarks
+    PDF-->>API: Page text and chapter boundaries
+    API->>API: Split text into chunks with page references
+    API->>DB: Save book, chapter, and chunk records
+    API->>AI: VectorStore.add(chunk documents)
+    AI->>Embed: Generate one embedding per chunk
+    Embed-->>AI: Chunk vectors
+    AI->>DB: Store vectors, text, and metadata
+    DB-->>API: Index stored
+    API-->>Reader: Ingestion status and counts
 
-    rect rgb(239, 248, 242)
-        Note over Reader,DB: Semantic search and answer
-        Reader->>UI: Ask a question
-        UI->>API: POST /api/search
-        API->>AI: VectorStore.similaritySearch(query)
-        AI->>Embed: Generate query embedding
-        Embed-->>AI: Query vector
-        AI->>DB: Find nearest vectors (top 5)
-        DB-->>AI: Relevant passages and metadata
-        AI-->>API: Retrieved passages
-        API->>LLM: Question plus retrieved passages
-        LLM-->>API: Grounded answer with passage references
-        API-->>UI: Answer and source passages
-        UI-->>Reader: Display answer, book, chapter, and pages
-    end
+    Note over Reader,DB: Semantic search and answer
+    Reader->>UI: Ask a question
+    UI->>API: POST /api/search
+    API->>AI: VectorStore.similaritySearch(query)
+    AI->>Embed: Generate query embedding
+    Embed-->>AI: Query vector
+    AI->>DB: Find nearest vectors (top 5)
+    DB-->>AI: Relevant passages and metadata
+    AI-->>API: Retrieved passages
+    API->>LLM: Question plus retrieved passages
+    LLM-->>API: Grounded answer with passage references
+    API-->>UI: Answer and source passages
+    UI-->>Reader: Display answer, book, chapter, and pages
 ```
 
 The language model does not query PostgreSQL itself. Spring AI performs retrieval first and passes the resulting passages to Phi-4 as context. The backend also returns the retrieved sources independently of the generated answer so the UI can display them for verification.
