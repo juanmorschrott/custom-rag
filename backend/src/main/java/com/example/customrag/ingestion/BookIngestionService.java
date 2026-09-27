@@ -21,6 +21,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Service
 public class BookIngestionService {
@@ -53,23 +54,50 @@ public class BookIngestionService {
         this.vectorStore = vectorStore;
     }
 
-    public ScanReport scanBooks(String requestedFilename) throws IOException {
+    public List<Path> discoverPdfFiles() throws IOException {
         Files.createDirectories(booksDirectory);
-        List<Path> pdfFiles;
         try (var paths = Files.walk(booksDirectory)) {
-            pdfFiles = paths
+            return paths
                     .filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".pdf"))
-                        .filter(path -> requestedFilename == null
-                            || path.getFileName().toString().equals(requestedFilename))
                     .sorted()
                     .toList();
         }
+    }
 
-        List<BookScanResult> results = pdfFiles.stream().map(this::ingest).toList();
-        int ingested = (int) results.stream().filter(result -> result.status() == BookStatus.INDEXED).count();
-        int skipped = (int) results.stream().filter(result -> result.message().startsWith("Already registered")).count();
-        int failed = (int) results.stream().filter(result -> result.status() == BookStatus.FAILED).count();
+    public ScanReport scanBooks(String requestedFilename) throws IOException {
+        return scanBooks(requestedFilename, ignored -> {}, ignored -> {});
+    }
+
+    public ScanReport scanBooks(
+            String requestedFilename,
+            Consumer<String> onFileStarted,
+            Consumer<BookScanResult> onFileFinished) throws IOException {
+
+        List<Path> pdfFiles = discoverPdfFiles().stream()
+                .filter(path -> requestedFilename == null || path.getFileName().toString().equals(requestedFilename))
+                .toList();
+
+        List<BookScanResult> results = new ArrayList<>(pdfFiles.size());
+        for (Path pdfFile : pdfFiles) {
+            onFileStarted.accept(pdfFile.getFileName().toString());
+            BookScanResult result = ingest(pdfFile);
+            results.add(result);
+            onFileFinished.accept(result);
+        }
+
+        int ingested = (int) results.stream()
+            .filter(result -> result.status() == BookStatus.INDEXED)
+            .count();
+        
+        int skipped = (int) results.stream()
+            .filter(result -> result.message().startsWith("Already registered"))
+            .count();
+        
+        int failed = (int) results.stream()
+            .filter(result -> result.status() == BookStatus.FAILED)
+            .count();
+        
         return new ScanReport(pdfFiles.size(), ingested, skipped, failed, results);
     }
 

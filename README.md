@@ -23,14 +23,8 @@ docker compose exec ollama ollama pull embeddinggemma:latest
 docker compose exec ollama ollama pull phi4:latest
 ```
 
-Copy PDFs to `data/books/` (subfolders are supported) and index them:
-
-```bash
-make index-books
-```
-
-Open [http://localhost:3000](http://localhost:3000) and search your library.
+Copy PDFs to `data/books/` (subfolders are supported), open [http://localhost:3000](http://localhost:3000), select **Library**, and click **Scan library**. Progress and per-book status appear in the UI. You can then search from **Search**.
 
 The PDFs stay local and are excluded from Git. Scanned/image-only PDFs need OCR. CPU inference works but may be slow.
 
-Make shortcuts are available: `make up`, `make models`, `make index-books`, `make search QUERY="your question"`, and `make down`.
+CLI shortcuts are also available: `make up`, `make models`, `make index-books`, `make search QUERY="your question"`, and `make down`.

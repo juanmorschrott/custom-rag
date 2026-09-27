@@ -81,6 +81,10 @@ public class Book {
         return status;
     }
 
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public void markProcessing() {
         status = BookStatus.PROCESSING;
     }
