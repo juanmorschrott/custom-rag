@@ -1,22 +1,17 @@
 package com.example.customrag.ingestion;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class IngestionJobRunner {
 
     private final BookIngestionService bookIngestionService;
     private final IngestionJobRepository jobRepository;
-
-    public IngestionJobRunner(
-            BookIngestionService bookIngestionService,
-            IngestionJobRepository jobRepository) {
-        this.bookIngestionService = bookIngestionService;
-        this.jobRepository = jobRepository;
-    }
 
     @Async
     public void run(UUID jobId) {

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import com.example.customrag.search.SearchOutcome;
 import com.example.customrag.search.SearchService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,13 +16,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/search")
 @CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+@RequiredArgsConstructor
 public class SearchController {
 
     private final SearchService searchService;
-
-    public SearchController(SearchService searchService) {
-        this.searchService = searchService;
-    }
 
     @PostMapping
     public SearchResponse search(@Valid @RequestBody SearchRequest request) {

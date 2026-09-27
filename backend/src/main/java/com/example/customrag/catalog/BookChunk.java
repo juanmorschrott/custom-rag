@@ -10,12 +10,17 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.UUID;
 
 @Entity
 @Table(name = "book_chunks", uniqueConstraints = @UniqueConstraint(
         name = "uq_book_chunks_book_ordinal", columnNames = {"book_id", "ordinal"}))
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class BookChunk {
 
     @Id
@@ -42,9 +47,6 @@ public class BookChunk {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    protected BookChunk() {
-    }
-
     public BookChunk(Book book, Chapter chapter, int ordinal, int pageStart, int pageEnd, String content) {
         this.book = book;
         this.chapter = chapter;
@@ -52,33 +54,5 @@ public class BookChunk {
         this.pageStart = pageStart;
         this.pageEnd = pageEnd;
         this.content = content;
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public Book getBook() {
-        return book;
-    }
-
-    public Chapter getChapter() {
-        return chapter;
-    }
-
-    public int getOrdinal() {
-        return ordinal;
-    }
-
-    public int getPageStart() {
-        return pageStart;
-    }
-
-    public int getPageEnd() {
-        return pageEnd;
-    }
-
-    public String getContent() {
-        return content;
     }
 }

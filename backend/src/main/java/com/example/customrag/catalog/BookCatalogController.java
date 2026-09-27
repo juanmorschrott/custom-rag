@@ -1,5 +1,6 @@
 package com.example.customrag.catalog;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,13 +12,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/books")
+@RequiredArgsConstructor
 public class BookCatalogController {
 
     private final BookRepository bookRepository;
-
-    public BookCatalogController(BookRepository bookRepository) {
-        this.bookRepository = bookRepository;
-    }
 
     @GetMapping
     public List<BookSummary> listBooks() {

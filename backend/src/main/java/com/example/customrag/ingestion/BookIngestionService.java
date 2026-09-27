@@ -57,8 +57,7 @@ public class BookIngestionService {
     public List<Path> discoverPdfFiles() throws IOException {
         Files.createDirectories(booksDirectory);
         try (var paths = Files.walk(booksDirectory)) {
-            return paths
-                    .filter(Files::isRegularFile)
+            return paths.filter(Files::isRegularFile)
                     .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".pdf"))
                     .sorted()
                     .toList();

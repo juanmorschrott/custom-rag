@@ -9,12 +9,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "ingestion_jobs")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IngestionJob {
 
     @Id
@@ -40,6 +46,7 @@ public class IngestionJob {
     @Column(name = "failed_files", nullable = false)
     private int failedFiles;
 
+    @Setter
     @Column(name = "current_filename", length = 500)
     private String currentFilename;
 
@@ -55,8 +62,6 @@ public class IngestionJob {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
-    protected IngestionJob() {}
-
     @PrePersist
     void setCreatedAt() {
         if (createdAt == null) {
@@ -71,10 +76,6 @@ public class IngestionJob {
         if (totalFiles == 0) {
             this.finishedAt = Instant.now();
         }
-    }
-
-    public void setCurrentFilename(String currentFilename) {
-        this.currentFilename = currentFilename;
     }
 
     public void record(BookScanResult result) {
@@ -101,53 +102,5 @@ public class IngestionJob {
         lastError = message;
         currentFilename = null;
         finishedAt = Instant.now();
-    }
-
-    public UUID getId() {
-        return id;
-    }
-
-    public IngestionJobStatus getStatus() {
-        return status;
-    }
-
-    public int getTotalFiles() {
-        return totalFiles;
-    }
-
-    public int getProcessedFiles() {
-        return processedFiles;
-    }
-
-    public int getIndexedFiles() {
-        return indexedFiles;
-    }
-
-    public int getSkippedFiles() {
-        return skippedFiles;
-    }
-
-    public int getFailedFiles() {
-        return failedFiles;
-    }
-
-    public String getCurrentFilename() {
-        return currentFilename;
-    }
-
-    public String getLastError() {
-        return lastError;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getStartedAt() {
-        return startedAt;
-    }
-
-    public Instant getFinishedAt() {
-        return finishedAt;
     }
 }

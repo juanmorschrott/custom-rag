@@ -16,11 +16,4 @@ public record IngestionJobView(
         Instant createdAt,
         Instant startedAt,
         Instant finishedAt) {
-
-    public static IngestionJobView from(IngestionJob job) {
-        return new IngestionJobView(job.getId(), job.getStatus(), job.getTotalFiles(),
-                job.getProcessedFiles(), job.getIndexedFiles(), job.getSkippedFiles(),
-                job.getFailedFiles(), job.getCurrentFilename(), job.getLastError(),
-                job.getCreatedAt(), job.getStartedAt(), job.getFinishedAt());
-    }
 }

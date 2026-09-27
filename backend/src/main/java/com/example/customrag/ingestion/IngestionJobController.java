@@ -1,5 +1,6 @@
 package com.example.customrag.ingestion;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,13 +13,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/ingestion/jobs")
+@RequiredArgsConstructor
 public class IngestionJobController {
 
     private final IngestionJobService ingestionJobService;
-
-    public IngestionJobController(IngestionJobService ingestionJobService) {
-        this.ingestionJobService = ingestionJobService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
