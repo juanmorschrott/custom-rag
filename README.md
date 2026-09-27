@@ -2,9 +2,17 @@
 
 Find where software concepts are explained in your technical books, with book, chapter, and page references.
 
-[Architecture overview](docs/architecture.md)
+#### Injest Books
 
-![Custom RAG search result](docs/images/demo.png)
+![Custom RAG ingestion](docs/images/injest.png)
+
+#### Search
+
+![Custom RAG search result](docs/images/search.png)
+
+## Architecture Documentation
+
+[Architecture overview](docs/architecture.md)
 
 ## Quick Start
 
