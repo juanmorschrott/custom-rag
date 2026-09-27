@@ -2,6 +2,8 @@
 
 Find where software concepts are explained in your technical books, with book, chapter, and page references.
 
+[Architecture overview](docs/architecture.md)
+
 ![Custom RAG search result](docs/images/demo.png)
 
 ## Quick Start
