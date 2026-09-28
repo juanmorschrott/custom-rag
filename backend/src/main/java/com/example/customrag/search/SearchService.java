@@ -4,12 +4,14 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+@Slf4j
 @Service
 public class SearchService {
 
@@ -38,7 +40,9 @@ public class SearchService {
         List<SearchOutcome.SourcePassage> sources = documents.stream()
                 .map(SearchService::toSourcePassage)
                 .toList();
+        
         if (documents.isEmpty()) {
+            log.info("Search found no relevant passages");
             return new SearchOutcome("No he encontrado pasajes relevantes en los libros indexados.", sources);
         }
 
@@ -53,6 +57,7 @@ public class SearchService {
                 .call()
                 .content();
 
+        log.info("Search completed with {} source passage(s)", sources.size());
         return new SearchOutcome(answer, sources);
     }
 

@@ -7,6 +7,7 @@ import com.example.customrag.catalog.BookRepository;
 import com.example.customrag.catalog.BookStatus;
 import com.example.customrag.catalog.Chapter;
 import com.example.customrag.catalog.ChapterRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 
+@Slf4j
 @Service
 public class BookIngestionService {
 
@@ -78,6 +80,7 @@ public class BookIngestionService {
         List<Path> pdfFiles = discoverPdfFiles().stream()
                 .filter(path -> requestedFilename == null || path.getFileName().toString().equals(requestedFilename))
                 .toList();
+        log.info("Starting book scan: {} PDF file(s) selected from '{}'", pdfFiles.size(), booksDirectory);
 
         List<BookScanResult> results = new ArrayList<>(pdfFiles.size());
         for (Path pdfFile : pdfFiles) {
@@ -98,7 +101,9 @@ public class BookIngestionService {
         int failed = (int) results.stream()
             .filter(result -> result.status() == BookStatus.FAILED)
             .count();
-        
+
+        log.info("Book scan completed: discovered={}, indexed={}, skipped={}, failed={}",
+            pdfFiles.size(), ingested, skipped, failed);
         return new ScanReport(pdfFiles.size(), ingested, skipped, failed, results);
     }
 
@@ -111,6 +116,7 @@ public class BookIngestionService {
             var existingBook = bookRepository.findByChecksum(checksum);
             
             if (existingBook.isPresent() && existingBook.get().getStatus() == BookStatus.INDEXED) {
+                log.debug("Skipping already indexed PDF '{}'", filename);
                 return new BookScanResult(filename, existingBook.get().getStatus(), 0, 0,
                         "Already registered: checksum matches an existing book");
             }
@@ -136,6 +142,7 @@ public class BookIngestionService {
             
             List<TextChunk> chunks = textChunker.chunk(pages);
             if (chunks.isEmpty()) {
+                log.warn("No extractable text found in PDF '{}'; OCR may be required", filename);
                 book.markFailed();
                 bookRepository.save(book);
                 return new BookScanResult(filename, BookStatus.FAILED, pageCount, 0,
@@ -171,6 +178,7 @@ public class BookIngestionService {
                 book.markFailed();
                 bookRepository.save(book);
             }
+            log.error("Failed to ingest PDF '{}'", filename, exception);
             String message = exception.getMessage() == null ? "PDF processing failed" : exception.getMessage();
             return new BookScanResult(filename, BookStatus.FAILED, pageCount, 0, message);
         }
