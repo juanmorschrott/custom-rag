@@ -24,6 +24,7 @@ public class PdfTextExtractor {
                 stripper.setEndPage(pageNumber);
                 pages.add(new PageText(pageNumber, sanitize(stripper.getText(document))));
             }
+            
             return List.copyOf(pages);
         }
     }

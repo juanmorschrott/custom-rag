@@ -15,7 +15,9 @@ public class IngestionJobRunner {
 
     @Async
     public void run(UUID jobId) {
+
         IngestionJob job = jobRepository.findById(jobId).orElse(null);
+        
         if (job == null) {
             return;
         }

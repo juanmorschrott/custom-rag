@@ -23,18 +23,21 @@ public class SearchController {
 
     @PostMapping
     public SearchResponse search(@Valid @RequestBody SearchRequest request) {
-        SearchOutcome outcome = searchService.search(request.query());
-        return new SearchResponse(request.query(), outcome.answer(), outcome.sources().stream()
-                .map(source -> new SearchResult(source.bookTitle(), source.chapter(), source.pageStart(),
-                        source.pageEnd(), source.excerpt(), source.relevance()))
-                .toList());
+            SearchOutcome outcome = searchService.search(request.query());
+
+            return new SearchResponse(request.query(), outcome.answer(), outcome.sources().stream()
+                            .map(source -> new SearchResult(source.bookTitle(),
+                                            source.chapter(),
+                                            source.pageStart(),
+                                            source.pageEnd(),
+                                            source.excerpt(),
+                                            source.relevance()))
+                            .toList());
     }
 
-    public record SearchRequest(@NotBlank String query) {
-    }
+    public record SearchRequest(@NotBlank String query) {}
 
-    public record SearchResponse(String query, String answer, List<SearchResult> results) {
-    }
+    public record SearchResponse(String query, String answer, List<SearchResult> results) {}
 
     public record SearchResult(
             String bookTitle,

@@ -21,12 +21,14 @@ public class IngestionJobService {
 
     public synchronized IngestionJobView startScan() {
         var activeJob = jobRepository.findFirstByStatusInOrderByCreatedAtDesc(ACTIVE_STATUSES);
+        
         if (activeJob.isPresent()) {
             return jobMapper.toView(activeJob.get());
         }
 
         IngestionJob job = jobRepository.saveAndFlush(new IngestionJob());
         jobRunner.run(job.getId());
+        
         return jobMapper.toView(job);
     }
 

@@ -69,9 +69,11 @@ public class SearchService {
 
     private static String formatSource(int index, Document document) {
         Map<String, Object> metadata = document.getMetadata();
+
         String pages = metadataInteger(metadata, "pageStart") == metadataInteger(metadata, "pageEnd")
                 ? "p. " + metadataInteger(metadata, "pageStart")
                 : "pp. " + metadataInteger(metadata, "pageStart") + "-" + metadataInteger(metadata, "pageEnd");
+
         return "[" + index + "] " + metadataString(metadata, "bookTitle") + ", "
                 + metadataString(metadata, "chapter") + ", " + pages + "\n"
                 + document.getText();

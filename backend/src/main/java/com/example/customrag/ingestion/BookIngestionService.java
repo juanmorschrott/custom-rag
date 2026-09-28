@@ -26,6 +26,8 @@ import java.util.function.Consumer;
 @Service
 public class BookIngestionService {
 
+    private static final String FILE_EXTENSION = ".pdf";
+    
     private final Path booksDirectory;
     private final BookRepository bookRepository;
     private final ChapterRepository chapterRepository;
@@ -58,7 +60,7 @@ public class BookIngestionService {
         Files.createDirectories(booksDirectory);
         try (var paths = Files.walk(booksDirectory)) {
             return paths.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().toLowerCase().endsWith(".pdf"))
+                    .filter(path -> path.getFileName().toString().toLowerCase().endsWith(FILE_EXTENSION))
                     .sorted()
                     .toList();
         }
@@ -107,6 +109,7 @@ public class BookIngestionService {
         try {
             String checksum = checksum(pdfPath);
             var existingBook = bookRepository.findByChecksum(checksum);
+            
             if (existingBook.isPresent() && existingBook.get().getStatus() == BookStatus.INDEXED) {
                 return new BookScanResult(filename, existingBook.get().getStatus(), 0, 0,
                         "Already registered: checksum matches an existing book");
@@ -124,11 +127,13 @@ public class BookIngestionService {
                 String title = filename.substring(0, filename.length() - 4).strip();
                 book = bookRepository.save(new Book(title, null, filename, checksum));
             }
+            
             book.markProcessing();
             bookRepository.save(book);
 
             List<PageText> pages = pdfTextExtractor.extract(pdfPath);
             pageCount = pages.size();
+            
             List<TextChunk> chunks = textChunker.chunk(pages);
             if (chunks.isEmpty()) {
                 book.markFailed();
@@ -140,8 +145,11 @@ public class BookIngestionService {
             List<ChapterBoundary> boundaries = chapterDetector.detect(pdfPath);
             Book ingestedBook = book;
             List<Chapter> chapters = chapterRepository.saveAll(boundaries.stream()
-                    .map(boundary -> new Chapter(ingestedBook, boundary.chapterNumber(), boundary.title(),
-                            boundary.pageStart(), boundary.pageEnd()))
+                    .map(boundary -> new Chapter(ingestedBook,
+                            boundary.chapterNumber(),
+                            boundary.title(),
+                            boundary.pageStart(),
+                            boundary.pageEnd()))
                     .toList());
 
             List<BookChunk> bookChunks = new ArrayList<>(chunks.size());
@@ -150,6 +158,7 @@ public class BookIngestionService {
                 bookChunks.add(new BookChunk(book, chapter, chunk.ordinal(),
                         chunk.pageStart(), chunk.pageEnd(), chunk.text()));
             }
+
             List<BookChunk> savedChunks = bookChunkRepository.saveAll(bookChunks);
             vectorStore.add(savedChunks.stream().map(BookIngestionService::toVectorDocument).toList());
 

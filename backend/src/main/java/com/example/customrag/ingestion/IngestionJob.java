@@ -72,7 +72,10 @@ public class IngestionJob {
     public void start(int totalFiles) {
         this.totalFiles = totalFiles;
         this.startedAt = Instant.now();
-        this.status = totalFiles == 0 ? IngestionJobStatus.COMPLETED : IngestionJobStatus.RUNNING;
+        this.status = totalFiles == 0 
+            ? IngestionJobStatus.COMPLETED 
+            : IngestionJobStatus.RUNNING;
+        
         if (totalFiles == 0) {
             this.finishedAt = Instant.now();
         }
@@ -81,6 +84,7 @@ public class IngestionJob {
     public void record(BookScanResult result) {
         processedFiles++;
         currentFilename = null;
+        
         if (result.message().startsWith("Already registered")) {
             skippedFiles++;
         } else if (result.status() == com.example.customrag.catalog.BookStatus.INDEXED) {
@@ -92,7 +96,9 @@ public class IngestionJob {
     }
 
     public void complete() {
-        status = failedFiles == 0 ? IngestionJobStatus.COMPLETED : IngestionJobStatus.COMPLETED_WITH_ERRORS;
+        status = failedFiles == 0 
+            ? IngestionJobStatus.COMPLETED 
+            : IngestionJobStatus.COMPLETED_WITH_ERRORS;
         currentFilename = null;
         finishedAt = Instant.now();
     }
