@@ -37,7 +37,7 @@ public class SearchService {
                 .similarityThreshold(0.25)
                 .build());
 
-        List<SearchOutcome.SourcePassage> sources = documents.stream()
+        List<SourcePassage> sources = documents.stream()
                 .map(SearchService::toSourcePassage)
                 .toList();
         
@@ -61,9 +61,9 @@ public class SearchService {
         return new SearchOutcome(answer, sources);
     }
 
-    private static SearchOutcome.SourcePassage toSourcePassage(Document document) {
+    private static SourcePassage toSourcePassage(Document document) {
         Map<String, Object> metadata = document.getMetadata();
-        return new SearchOutcome.SourcePassage(
+        return new SourcePassage(
                 metadataString(metadata, "bookTitle"),
                 metadataString(metadata, "chapter"),
                 metadataInteger(metadata, "pageStart"),

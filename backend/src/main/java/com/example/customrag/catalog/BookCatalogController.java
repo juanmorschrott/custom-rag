@@ -6,9 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/books")
@@ -28,6 +26,4 @@ public class BookCatalogController {
                 .toList();
     }
 
-    public record BookSummary(UUID id, String title, String sourceFilename, BookStatus status, Instant createdAt) {
-    }
 }
