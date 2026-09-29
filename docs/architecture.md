@@ -81,7 +81,11 @@ sequenceDiagram
 
 The language model does not query PostgreSQL itself. Spring AI performs retrieval first and passes the resulting passages to Phi-4 as context. The backend also returns the retrieved sources independently of the generated answer so the UI can display them for verification.
 
-## 3. Storage Layer
+## 3. Backend Organization
+
+Backend controllers are grouped with the feature they expose: `SearchController` is in `com.example.customrag.search`, catalog endpoints are in `com.example.customrag.catalog`, and ingestion endpoints are in `com.example.customrag.ingestion`. This package organization does not change the HTTP routes consumed by the frontend, including `POST /api/search` and the asynchronous ingestion job endpoints.
+
+## 4. Storage Layer
 
 ### Vector database
 

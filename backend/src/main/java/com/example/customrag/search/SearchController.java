@@ -1,9 +1,7 @@
-package com.example.customrag.api;
+package com.example.customrag.search;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import com.example.customrag.search.SearchOutcome;
-import com.example.customrag.search.SearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,16 +21,11 @@ public class SearchController {
 
     @PostMapping
     public SearchResponse search(@Valid @RequestBody SearchRequest request) {
-            SearchOutcome outcome = searchService.search(request.query());
-
-            return new SearchResponse(request.query(), outcome.answer(), outcome.sources().stream()
-                            .map(source -> new SearchResult(source.bookTitle(),
-                                            source.chapter(),
-                                            source.pageStart(),
-                                            source.pageEnd(),
-                                            source.excerpt(),
-                                            source.relevance()))
-                            .toList());
+        SearchOutcome outcome = searchService.search(request.query());
+        return new SearchResponse(request.query(), outcome.answer(), outcome.sources().stream()
+                .map(source -> new SearchResult(source.bookTitle(), source.chapter(), source.pageStart(),
+                        source.pageEnd(), source.excerpt(), source.relevance()))
+                .toList());
     }
 
     public record SearchRequest(@NotBlank String query) {}
