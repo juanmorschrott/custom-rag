@@ -15,19 +15,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SearchController {
 
     private final SearchService searchService;
+    private final SearchResultMapper searchResultMapper;
 
     @PostMapping
     public SearchResponse search(@Valid @RequestBody SearchRequest request) {
-            SearchOutcome outcome = searchService.search(request.query());
-            return new SearchResponse(request.query(),
-                            outcome.answer(),
-                            outcome.sources().stream()
-                                            .map(source -> new SearchResult(source.bookTitle(),
-                                                            source.chapter(),
-                                                            source.pageStart(),
-                                                            source.pageEnd(),
-                                                            source.excerpt(),
-                                                            source.relevance()))
-                                            .toList());
+        SearchOutcome outcome = searchService.search(request.query());
+        return searchResultMapper.toResponse(request.query(), outcome);
     }
 }

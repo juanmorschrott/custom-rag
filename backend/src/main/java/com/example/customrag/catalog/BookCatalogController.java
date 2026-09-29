@@ -14,16 +14,11 @@ import java.util.List;
 public class BookCatalogController {
 
     private final BookRepository bookRepository;
+    private final BookMapper bookMapper;
 
     @GetMapping
     public List<BookSummary> listBooks() {
-        return bookRepository.findAll(Sort.by(Sort.Direction.ASC, "title")).stream()
-                .map(book -> new BookSummary(book.getId(),
-                        book.getTitle(),
-                        book.getSourceFilename(),
-                        book.getStatus(),
-                        book.getCreatedAt()))
-                .toList();
+        return bookMapper.toSummaries(bookRepository.findAll(Sort.by(Sort.Direction.ASC, "title")));
     }
 
 }
