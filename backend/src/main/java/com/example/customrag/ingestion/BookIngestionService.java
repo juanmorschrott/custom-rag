@@ -1,18 +1,5 @@
 package com.example.customrag.ingestion;
 
-import com.example.customrag.catalog.Book;
-import com.example.customrag.catalog.BookChunk;
-import com.example.customrag.catalog.BookChunkRepository;
-import com.example.customrag.catalog.BookRepository;
-import com.example.customrag.catalog.BookStatus;
-import com.example.customrag.catalog.Chapter;
-import com.example.customrag.catalog.ChapterRepository;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -23,6 +10,21 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
+
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.example.customrag.catalog.Book;
+import com.example.customrag.catalog.BookChunk;
+import com.example.customrag.catalog.BookChunkRepository;
+import com.example.customrag.catalog.BookRepository;
+import com.example.customrag.catalog.BookStatus;
+import com.example.customrag.catalog.Chapter;
+import com.example.customrag.catalog.ChapterRepository;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service

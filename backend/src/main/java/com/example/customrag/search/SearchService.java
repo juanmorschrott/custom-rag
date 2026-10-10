@@ -1,15 +1,16 @@
 package com.example.customrag.search;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
+
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.IntStream;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
