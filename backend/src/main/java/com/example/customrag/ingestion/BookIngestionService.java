@@ -13,18 +13,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.example.customrag.catalog.Book;
-import com.example.customrag.catalog.BookChunk;
-import com.example.customrag.catalog.BookChunkRepository;
 import com.example.customrag.catalog.BookRepository;
 import com.example.customrag.catalog.BookStatus;
-import com.example.customrag.catalog.Chapter;
-import com.example.customrag.catalog.ChapterRepository;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,30 +31,24 @@ public class BookIngestionService {
     
     private final Path booksDirectory;
     private final BookRepository bookRepository;
-    private final ChapterRepository chapterRepository;
-    private final BookChunkRepository bookChunkRepository;
     private final PdfTextExtractor pdfTextExtractor;
     private final ChapterDetector chapterDetector;
     private final TextChunker textChunker;
-    private final VectorStore vectorStore;
+    private final BookIndexer bookIndexer;
 
     public BookIngestionService(
             @Value("${app.ingestion.books-directory:../data/books}") String booksDirectory,
             BookRepository bookRepository,
-            ChapterRepository chapterRepository,
-            BookChunkRepository bookChunkRepository,
             PdfTextExtractor pdfTextExtractor,
             ChapterDetector chapterDetector,
             TextChunker textChunker,
-            VectorStore vectorStore) {
+            BookIndexer bookIndexer) {
         this.booksDirectory = Path.of(booksDirectory).toAbsolutePath().normalize();
         this.bookRepository = bookRepository;
-        this.chapterRepository = chapterRepository;
-        this.bookChunkRepository = bookChunkRepository;
         this.pdfTextExtractor = pdfTextExtractor;
         this.chapterDetector = chapterDetector;
         this.textChunker = textChunker;
-        this.vectorStore = vectorStore;
+        this.bookIndexer = bookIndexer;
     }
 
     public List<Path> discoverPdfFiles() throws IOException {
@@ -112,11 +100,6 @@ public class BookIngestionService {
         return new ScanReport(pdfFiles.size(), ingested, skipped, failed, results);
     }
 
-    static String sanitizeForEmbedding(String text) {
-        return text.replace("\u0000", "").replaceAll("<\\|[^\\s|]+\\|>", " ")
-                .replaceAll("\\s+", " ").strip();
-    }
-
     private BookScanResult ingest(Path pdfPath) {
         String filename = pdfPath.getFileName().toString();
         IngestionContext context = new IngestionContext();
@@ -129,7 +112,7 @@ public class BookIngestionService {
                 return new BookScanResult(filename, BookStatus.INDEXED, 0, 0, ALREADY_REGISTERED_MESSAGE);
             }
 
-            context.book = existingBook.map(this::resetBook)
+            context.book = existingBook
                     .orElseGet(() -> bookRepository.save(new Book(titleOf(filename), null, filename, checksum)));
             context.book.markProcessing();
             bookRepository.save(context.book);
@@ -154,12 +137,7 @@ public class BookIngestionService {
                     "No extractable text found; scanned PDFs need OCR");
         }
 
-        List<Chapter> chapters = saveChapters(book, chapterDetector.detect(pdfPath));
-        List<BookChunk> savedChunks = bookChunkRepository.saveAll(toBookChunks(book, chapters, chunks));
-        vectorStore.add(savedChunks.stream().map(BookIngestionService::toVectorDocument).toList());
-
-        book.markIndexed();
-        bookRepository.save(book);
+        bookIndexer.replaceIndex(book.getId(), chapterDetector.detect(pdfPath), chunks);
         return new BookScanResult(filename, BookStatus.INDEXED, context.pageCount, chunks.size(),
                 "Text and embeddings indexed with page references");
     }
@@ -174,54 +152,8 @@ public class BookIngestionService {
         return new BookScanResult(filename, BookStatus.FAILED, context.pageCount, 0, message);
     }
 
-    private Book resetBook(Book book) {
-        List<BookChunk> previousChunks = bookChunkRepository.findAllByBook_IdOrderByOrdinalAsc(book.getId());
-        if (!previousChunks.isEmpty()) {
-            vectorStore.delete(previousChunks.stream().map(chunk -> chunk.getId().toString()).toList());
-        }
-        bookChunkRepository.deleteAllByBook_Id(book.getId());
-        chapterRepository.deleteAllByBook_Id(book.getId());
-        return book;
-    }
-
-    private List<Chapter> saveChapters(Book book, List<ChapterBoundary> boundaries) {
-        return chapterRepository.saveAll(boundaries.stream()
-                .map(boundary -> new Chapter(book,
-                        boundary.chapterNumber(),
-                        boundary.title(),
-                        boundary.pageStart(),
-                        boundary.pageEnd()))
-                .toList());
-    }
-
-    private List<BookChunk> toBookChunks(Book book, List<Chapter> chapters, List<TextChunk> chunks) {
-        return chunks.stream()
-                .map(chunk -> new BookChunk(book, findChapter(chapters, chunk.pageStart()), chunk.ordinal(),
-                        chunk.pageStart(), chunk.pageEnd(), chunk.text()))
-                .toList();
-    }
-
     private static String titleOf(String filename) {
         return filename.substring(0, filename.length() - FILE_EXTENSION.length()).strip();
-    }
-
-    private static Document toVectorDocument(BookChunk chunk) {
-        return Document.builder()
-                .id(chunk.getId().toString())
-                .text(sanitizeForEmbedding(chunk.getContent()))
-                .metadata("bookId", chunk.getBook().getId().toString())
-                .metadata("bookTitle", chunk.getBook().getTitle())
-                .metadata("chapter", chunk.getChapter().getTitle())
-                .metadata("pageStart", chunk.getPageStart())
-                .metadata("pageEnd", chunk.getPageEnd())
-                .build();
-    }
-
-    private Chapter findChapter(List<Chapter> chapters, int pageNumber) {
-        return chapters.stream()
-                .filter(chapter -> chapter.getPageStart() <= pageNumber && chapter.getPageEnd() >= pageNumber)
-                .findFirst()
-                .orElse(chapters.getFirst());
     }
 
     private String checksum(Path path) throws IOException, NoSuchAlgorithmException {
