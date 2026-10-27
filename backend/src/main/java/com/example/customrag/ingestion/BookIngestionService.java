@@ -9,6 +9,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.springframework.ai.document.Document;
@@ -31,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 public class BookIngestionService {
 
     private static final String FILE_EXTENSION = ".pdf";
+    private static final String ALREADY_REGISTERED_MESSAGE = "Already registered: checksum matches an existing book";
     
     private final Path booksDirectory;
     private final BookRepository bookRepository;
@@ -97,7 +100,7 @@ public class BookIngestionService {
             .count();
         
         int skipped = (int) results.stream()
-            .filter(result -> result.message().startsWith("Already registered"))
+            .filter(result -> ALREADY_REGISTERED_MESSAGE.equals(result.message()))
             .count();
         
         int failed = (int) results.stream()
@@ -109,81 +112,97 @@ public class BookIngestionService {
         return new ScanReport(pdfFiles.size(), ingested, skipped, failed, results);
     }
 
+    static String sanitizeForEmbedding(String text) {
+        return text.replace("\u0000", "").replaceAll("<\\|[^\\s|]+\\|>", " ")
+                .replaceAll("\\s+", " ").strip();
+    }
+
     private BookScanResult ingest(Path pdfPath) {
         String filename = pdfPath.getFileName().toString();
-        Book book = null;
-        int pageCount = 0;
+        IngestionContext context = new IngestionContext();
         try {
             String checksum = checksum(pdfPath);
-            var existingBook = bookRepository.findByChecksum(checksum);
-            
-            if (existingBook.isPresent() && existingBook.get().getStatus() == BookStatus.INDEXED) {
+            Optional<Book> existingBook = bookRepository.findByChecksum(checksum);
+
+            if (existingBook.filter(book -> book.getStatus() == BookStatus.INDEXED).isPresent()) {
                 log.debug("Skipping already indexed PDF '{}'", filename);
-                return new BookScanResult(filename, existingBook.get().getStatus(), 0, 0,
-                        "Already registered: checksum matches an existing book");
+                return new BookScanResult(filename, BookStatus.INDEXED, 0, 0, ALREADY_REGISTERED_MESSAGE);
             }
 
-            if (existingBook.isPresent()) {
-                book = existingBook.get();
-                List<BookChunk> previousChunks = bookChunkRepository.findAllByBook_IdOrderByOrdinalAsc(book.getId());
-                if (!previousChunks.isEmpty()) {
-                    vectorStore.delete(previousChunks.stream().map(chunk -> chunk.getId().toString()).toList());
-                }
-                bookChunkRepository.deleteAllByBook_Id(book.getId());
-                chapterRepository.deleteAllByBook_Id(book.getId());
-            } else {
-                String title = filename.substring(0, filename.length() - 4).strip();
-                book = bookRepository.save(new Book(title, null, filename, checksum));
-            }
-            
-            book.markProcessing();
-            bookRepository.save(book);
+            context.book = existingBook.map(this::resetBook)
+                    .orElseGet(() -> bookRepository.save(new Book(titleOf(filename), null, filename, checksum)));
+            context.book.markProcessing();
+            bookRepository.save(context.book);
 
-            List<PageText> pages = pdfTextExtractor.extract(pdfPath);
-            pageCount = pages.size();
-            
-            List<TextChunk> chunks = textChunker.chunk(pages);
-            if (chunks.isEmpty()) {
-                log.warn("No extractable text found in PDF '{}'; OCR may be required", filename);
-                book.markFailed();
-                bookRepository.save(book);
-                return new BookScanResult(filename, BookStatus.FAILED, pageCount, 0,
-                        "No extractable text found; scanned PDFs need OCR");
-            }
-
-            List<ChapterBoundary> boundaries = chapterDetector.detect(pdfPath);
-            Book ingestedBook = book;
-            List<Chapter> chapters = chapterRepository.saveAll(boundaries.stream()
-                    .map(boundary -> new Chapter(ingestedBook,
-                            boundary.chapterNumber(),
-                            boundary.title(),
-                            boundary.pageStart(),
-                            boundary.pageEnd()))
-                    .toList());
-
-            List<BookChunk> bookChunks = new ArrayList<>(chunks.size());
-            for (TextChunk chunk : chunks) {
-                Chapter chapter = findChapter(chapters, chunk.pageStart());
-                bookChunks.add(new BookChunk(book, chapter, chunk.ordinal(),
-                        chunk.pageStart(), chunk.pageEnd(), chunk.text()));
-            }
-
-            List<BookChunk> savedChunks = bookChunkRepository.saveAll(bookChunks);
-            vectorStore.add(savedChunks.stream().map(BookIngestionService::toVectorDocument).toList());
-
-            book.markIndexed();
-            bookRepository.save(book);
-            return new BookScanResult(filename, BookStatus.INDEXED, pageCount, chunks.size(),
-                    "Text and embeddings indexed with page references");
+            return indexBook(pdfPath, filename, context);
         } catch (Exception exception) {
-            if (book != null) {
-                book.markFailed();
-                bookRepository.save(book);
-            }
-            log.error("Failed to ingest PDF '{}'", filename, exception);
-            String message = exception.getMessage() == null ? "PDF processing failed" : exception.getMessage();
-            return new BookScanResult(filename, BookStatus.FAILED, pageCount, 0, message);
+            return failIngestion(filename, context, exception);
         }
+    }
+
+    private BookScanResult indexBook(Path pdfPath, String filename, IngestionContext context) throws IOException {
+        Book book = context.book;
+        List<PageText> pages = pdfTextExtractor.extract(pdfPath);
+        context.pageCount = pages.size();
+
+        List<TextChunk> chunks = textChunker.chunk(pages);
+        if (chunks.isEmpty()) {
+            log.warn("No extractable text found in PDF '{}'; OCR may be required", filename);
+            book.markFailed();
+            bookRepository.save(book);
+            return new BookScanResult(filename, BookStatus.FAILED, context.pageCount, 0,
+                    "No extractable text found; scanned PDFs need OCR");
+        }
+
+        List<Chapter> chapters = saveChapters(book, chapterDetector.detect(pdfPath));
+        List<BookChunk> savedChunks = bookChunkRepository.saveAll(toBookChunks(book, chapters, chunks));
+        vectorStore.add(savedChunks.stream().map(BookIngestionService::toVectorDocument).toList());
+
+        book.markIndexed();
+        bookRepository.save(book);
+        return new BookScanResult(filename, BookStatus.INDEXED, context.pageCount, chunks.size(),
+                "Text and embeddings indexed with page references");
+    }
+
+    private BookScanResult failIngestion(String filename, IngestionContext context, Exception exception) {
+        if (context.book != null) {
+            context.book.markFailed();
+            bookRepository.save(context.book);
+        }
+        log.error("Failed to ingest PDF '{}'", filename, exception);
+        String message = Objects.requireNonNullElse(exception.getMessage(), "PDF processing failed");
+        return new BookScanResult(filename, BookStatus.FAILED, context.pageCount, 0, message);
+    }
+
+    private Book resetBook(Book book) {
+        List<BookChunk> previousChunks = bookChunkRepository.findAllByBook_IdOrderByOrdinalAsc(book.getId());
+        if (!previousChunks.isEmpty()) {
+            vectorStore.delete(previousChunks.stream().map(chunk -> chunk.getId().toString()).toList());
+        }
+        bookChunkRepository.deleteAllByBook_Id(book.getId());
+        chapterRepository.deleteAllByBook_Id(book.getId());
+        return book;
+    }
+
+    private List<Chapter> saveChapters(Book book, List<ChapterBoundary> boundaries) {
+        return chapterRepository.saveAll(boundaries.stream()
+                .map(boundary -> new Chapter(book,
+                        boundary.chapterNumber(),
+                        boundary.title(),
+                        boundary.pageStart(),
+                        boundary.pageEnd()))
+                .toList());
+    }
+
+    private List<BookChunk> toBookChunks(Book book, List<Chapter> chapters, List<TextChunk> chunks) {
+        return chunks.stream()
+                .map(chunk -> new BookChunk(book, findChapter(chapters, chunk.pageStart()), chunk.ordinal(),
+                        chunk.pageStart(), chunk.pageEnd(), chunk.text()))
+                .toList();
+    }
+
+    private static String titleOf(String filename) {
+        return filename.substring(0, filename.length() - FILE_EXTENSION.length()).strip();
     }
 
     private static Document toVectorDocument(BookChunk chunk) {
@@ -196,11 +215,6 @@ public class BookIngestionService {
                 .metadata("pageStart", chunk.getPageStart())
                 .metadata("pageEnd", chunk.getPageEnd())
                 .build();
-    }
-
-    static String sanitizeForEmbedding(String text) {
-        return text.replace("\u0000", "").replaceAll("<\\|[^\\s|]+\\|>", " ")
-                .replaceAll("\\s+", " ").strip();
     }
 
     private Chapter findChapter(List<Chapter> chapters, int pageNumber) {
@@ -220,5 +234,10 @@ public class BookIngestionService {
             }
         }
         return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static final class IngestionContext {
+        private Book book;
+        private int pageCount;
     }
 }

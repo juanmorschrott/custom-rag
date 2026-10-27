@@ -25,37 +25,42 @@ public class TextChunker {
 
     public List<TextChunk> chunk(List<PageText> pages) {
         List<TextChunk> chunks = new ArrayList<>();
-        
+
         for (PageText page : pages) {
             String text = page.text().replaceAll("\\s+", " ").strip();
             int start = 0;
-            
-            while (start < text.length()) {
-                int end = Math.min(start + maximumCharacters, text.length());
-                if (end < text.length()) {
-                    int boundary = text.lastIndexOf(' ', end);
-                    if (boundary > start) {
-                        end = boundary;
-                    }
-                }
 
+            while (start < text.length()) {
+                int end = chunkEnd(text, start);
                 String chunkText = text.substring(start, end).strip();
-                
+
                 if (!chunkText.isEmpty()) {
                     chunks.add(new TextChunk(chunks.size(), page.pageNumber(), page.pageNumber(), chunkText));
                 }
-                
+
                 if (end == text.length()) {
                     break;
                 }
-                
-                start = Math.max(end - overlapCharacters, start + 1);
-                
-                while (start < text.length() && text.charAt(start) == ' ') {
-                    start++;
-                }
+                start = nextStart(text, start, end);
             }
         }
         return List.copyOf(chunks);
+    }
+
+    private int chunkEnd(String text, int start) {
+        int end = Math.min(start + maximumCharacters, text.length());
+        if (end == text.length()) {
+            return end;
+        }
+        int boundary = text.lastIndexOf(' ', end);
+        return boundary > start ? boundary : end;
+    }
+
+    private int nextStart(String text, int start, int end) {
+        int next = Math.max(end - overlapCharacters, start + 1);
+        while (next < text.length() && text.charAt(next) == ' ') {
+            next++;
+        }
+        return next;
     }
 }
