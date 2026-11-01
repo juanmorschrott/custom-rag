@@ -14,6 +14,12 @@ Find where software concepts are explained in your technical books, with book, c
 
 [Architecture overview](docs/architecture.md)
 
+## Development with AI
+
+- [Agent instructions](AGENTS.md)
+- [Current product specification](specs/product.md)
+- [RAG evaluation guide and cases](specs/rag-evaluation.md)
+
 ## Quick Start
 
 Requires Docker Compose, GNU Make, `curl`, `jq`, and an internet connection for the initial image/model downloads.
@@ -36,3 +42,5 @@ Copy PDFs to `data/books/` (subfolders are supported), open [http://localhost:30
 The PDFs stay local and are excluded from Git. Scanned/image-only PDFs need OCR. CPU inference works but may be slow.
 
 CLI shortcuts are also available: `make up`, `make models`, `make index-books`, `make search QUERY="your question"`, and `make down`.
+
+Run backend tests with `cd backend && ./mvnw test`, frontend checks with `cd frontend && npm run build && npm run lint`, and the RAG harness with `make rag-eval` after adding evaluation cases and indexing books. Run the harness's own tests with `make test-rag-eval`.

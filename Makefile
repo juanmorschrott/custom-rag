@@ -3,7 +3,7 @@ API_URL ?= http://localhost:8080
 QUERY ?=
 export QUERY
 
-.PHONY: up models down index-books search
+.PHONY: up models down index-books search rag-eval test-rag-eval
 
 up:
 	$(COMPOSE) up --build -d
@@ -24,3 +24,9 @@ search:
 		-H 'Content-Type: application/json' \
 		-d "$$(jq -cn --arg query "$$QUERY" '{query:$$query}')" \
 		"$(API_URL)/api/search" | jq .
+
+rag-eval:
+	node scripts/rag-eval.mjs --api-url "$(API_URL)"
+
+test-rag-eval:
+	node --test scripts/rag-eval.test.mjs
